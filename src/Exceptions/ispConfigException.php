@@ -9,7 +9,7 @@
 namespace ispConfig\Exceptions;
 
 
-class IspcfgUnknownServerException extends \Exception
+class ispConfigException extends \Exception
 {
 
 }

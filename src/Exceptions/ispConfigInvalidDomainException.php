@@ -9,7 +9,7 @@
 namespace ispConfig\Exceptions;
 
 
-class IspcfgNoSessionException extends \Exception
+class ispConfigInvalidDomainException extends \Exception
 {
 
 }

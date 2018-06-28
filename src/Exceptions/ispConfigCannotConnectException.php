@@ -9,7 +9,7 @@
 namespace ispConfig\Exceptions;
 
 
-class IspcfgCannotConnectException extends \Exception
+class ispConfigCannotConnectException extends \Exception
 {
 
 }

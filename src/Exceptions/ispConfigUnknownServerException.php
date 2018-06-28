@@ -9,7 +9,7 @@
 namespace ispConfig\Exceptions;
 
 
-class IspcfgInvalidDomainException extends \Exception
+class ispConfigUnknownServerException extends \Exception
 {
 
 }

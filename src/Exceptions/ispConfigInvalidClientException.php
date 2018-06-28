@@ -9,7 +9,7 @@
 namespace ispConfig\Exceptions;
 
 
-class IspcfgInvalidClientException extends \Exception
+class ispConfigInvalidClientException extends \Exception
 {
 
 }
