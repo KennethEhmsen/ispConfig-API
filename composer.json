@@ -1,0 +1,35 @@
+{
+  "name": "TXC/ispConfig-DNS",
+  "version": "0.1.0",
+  "description": "Remote API client for ISPConfig3 to support logical operations of Lollipop",
+  "type": "library",
+  "license": "LGPL-3.0-only",
+  "authors": [
+    {
+      "name": "Jonas Marklén",
+      "email": "txc@txc.se",
+      "homepage": "https://txc.se",
+      "role": "Developer"
+    },
+    {
+      "name": "Ben Lake",
+      "email": "me@benlake.org",
+      "homepage": "http://benlake.org",
+      "role": "Original Developer"
+    }
+  ],
+  "autoload": {
+    "psr-4": {
+      "ispConfig\\": "src"
+    }
+  },
+  "require": {
+    "php" : "^7.1",
+    "ext-libxml": "*",
+    "ext-xml": "*",
+    "ext-soap": "*"
+  },
+  "require-dev": {
+    "phpunit/phpunit": "^7"
+  }
+}
