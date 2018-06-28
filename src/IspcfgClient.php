@@ -1,5 +1,6 @@
 <?php
 /**
+ * @author Jonas Marklén <txc@txc.se>
  * @author Ben Lake <me@benlake.org>
  * @license GNU Lesser Public License v3 (http://opensource.org/licenses/lgpl-3.0.html)
  * @copyright Copyright (c) 2011, Ben Lake
@@ -27,6 +28,8 @@
  * You can find the source at http://www.ispconfig.org/ispconfig-3/
  */
 
+namespace ispConfig;
+
 use ispConfig\Exceptions\IspcfgAuthFailed;
 use ispConfig\Exceptions\IspcfgCannotConnectException;
 use ispConfig\Exceptions\IspcfgException;
@@ -34,6 +37,8 @@ use ispConfig\Exceptions\IspcfgInvalidClientException;
 use ispConfig\Exceptions\IspcfgInvalidDomainException;
 use ispConfig\Exceptions\IspcfgNoSessionException;
 use ispConfig\Exceptions\IspcfgUnknownServerException;
+use SoapClient;
+use SoapFault;
 
 /**
  * Remote API client for ISPConfig3 to support logical operations of Lollipop.
@@ -44,7 +49,7 @@ use ispConfig\Exceptions\IspcfgUnknownServerException;
  * @package ispconfig3
  * @version 0.1
  */
-class IspcfgClient
+class ispConfigClient
 {
     protected $host;
     protected $server_id;
@@ -91,7 +96,7 @@ class IspcfgClient
         try {
             /** @noinspection PhpUndefinedMethodInspection */
             $this->session_id = $this->soap->login($user, $pass);
-        } catch (\SoapFault $e) {
+        } catch (SoapFault $e) {
             if (strpos($e->getMessage(), 'login failed') !== false) {
                 throw new IspcfgAuthFailed($e->getMessage(), 403);
             } else {
