@@ -1,7 +1,7 @@
 {
   "name": "txc/ispconfig-api",
-  "version": "0.2.0",
-  "description": "Remote API client for ISPConfig3 to support logical operations of Lollipop",
+  "version": "0.2.1",
+  "description": "Remote API client for ISPConfig3 to support logical operations",
   "type": "library",
   "license": "LGPL-3.0-only",
   "authors": [
