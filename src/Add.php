@@ -1,11 +1,4 @@
 <?php
-/**
- * Created by PhpStorm.
- * User: jonas
- * Date: 2018-06-29
- * Time: 15:10
- */
-
 namespace ispConfig;
 
 use ispConfig\Interfaces\Add as AddInterface;

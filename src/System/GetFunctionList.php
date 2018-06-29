@@ -1,13 +1,5 @@
 <?php
-/**
- * Created by PhpStorm.
- * User: jonas
- * Date: 2018-06-29
- * Time: 10:56
- */
-
 namespace ispConfig\System;
-
 
 use ispConfig\Request;
 
