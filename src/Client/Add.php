@@ -8,21 +8,14 @@
 
 namespace ispConfig\Client;
 
-use ispConfig\Request;
+use ispConfig\Add as ParentAdd;
 
-class Add extends Request
+class Add extends ParentAdd
 {
     /** @var string  */
     protected $Method = 'client_add';
-    /** @var string */
-    public $session_id;
-    /** @var string */
-    public $reseller_id;
-    /** @var array */
-    public $params;
 
     /**
-     * Constructor.
      * @param $session_id
      * @param $reseller_id
      * @param array $params List of parameters:
@@ -88,10 +81,4 @@ class Add extends Request
      *      created_at          bigint(20)
      * @returns int Returns the ID of the newly added
      */
-    public function __construct($session_id, $reseller_id, $params = [])
-    {
-        $this->session_id = $session_id;
-        $this->reseller_id = $reseller_id;
-        $this->params = $params;
-    }
 }

@@ -8,7 +8,7 @@
 
 namespace ispConfig\Dns\MX;
 
-use ispConfig\Dns\Add as ParentAdd;
+use ispConfig\Add as ParentAdd;
 
 class Add extends ParentAdd
 {

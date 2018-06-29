@@ -14,17 +14,8 @@ class Update extends Request
 {
     /** @var string  */
     protected $Method = 'client_update';
-    /** @var string */
-    public $session_id;
-    /** @var int */
-    public $client_id;
-    /** @var int */
-    public $reseller_id;
-    /** @var array */
-    public $params;
 
     /**
-     * Constructor.
      * @param string $session_id
      * @param int $client_id
      * @param int $reseller_id
@@ -91,11 +82,4 @@ class Update extends Request
      *      created_at          bigint(20)
      * @returns int Returns the number of affected rows
      */
-    public function __construct($session_id, $client_id, $reseller_id, $params = [])
-    {
-        $this->session_id = $session_id;
-        $this->client_id = $client_id;
-        $this->reseller_id = $reseller_id;
-        $this->params = $params;
-    }
 }

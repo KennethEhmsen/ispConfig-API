@@ -8,26 +8,10 @@
 
 namespace ispConfig\Client;
 
+use ispConfig\Get as ParentGet;
 
-use ispConfig\Request;
-
-class Get extends Request
+class Get extends ParentGet
 {
     /** @var string  */
     protected $Method = 'client_get';
-    /** @var string */
-    public $session_id;
-    /** @var int */
-    public $client_id;
-
-    /**
-     * Constructor.
-     * @param string $session_id
-     * @param string $client_id
-     */
-    public function __construct($session_id, $client_id)
-    {
-        $this->session_id = $session_id;
-        $this->client_id = $client_id;
-    }
 }

@@ -9,6 +9,7 @@
 namespace ispConfig;
 
 use ispConfig\Exceptions\ispConfigCannotConnectException;
+use ispConfig\Exceptions\ispConfigMissingConfiguration;
 use ispConfig\Exceptions\ispConfigNoSessionException;
 use SoapClient;
 use SoapFault;
@@ -18,23 +19,45 @@ class Request
     /** @var string */
     protected $Method;
     /** @var bool */
-    private $test;
+    private static $test;
     /** @var SoapClient */
-    private $client;
+    private static $client;
     /** @var string  */
-    private $host;
+    public static $host;
     /** @var int  */
-    private $port;
+    private static $port;
     /** @var string  */
-    private $path;
-    /** @var Monolog */
-    private $log;
-
+    private static $path;
+    /** @var string */
     public $session_id;
+
+    /**
+     * @throws ispConfigCannotConnectException
+     */
+    private static function connect()
+    {
+        if (empty(self::$host) || empty(self::$port) || empty(self::$path)) {
+            throw new ispConfigCannotConnectException();
+        }
+
+        $location = 'https://' . self::$host . ':' . self::$port . '/' . self::$path;
+        $parsedUrl = parse_url($location);
+
+        $opts = [
+            'location' => $location,
+            'uri' => 'http://' . self::$host . $parsedUrl['path'] . '/',
+            'exceptions' => true,
+            'trace' => !self::$test,
+            'features' => SOAP_SINGLE_ELEMENT_ARRAYS,
+        ];
+
+        // create soap client in non-wsdl mode
+        self::$client = new SoapClient(null, $opts);
+    }
 
     public function __getLastRequest()
     {
-        return $this->client->__getLastRequest();
+        return self::$client->__getLastRequest();
     }
 
     /**
@@ -42,11 +65,11 @@ class Request
      * @param int $port
      * @param string $path
      */
-    public function setCredentials($host, $port = 8080, $path = 'remote/index.php')
+    public static function setCredentials($host, $port = 8080, $path = 'remote/index.php')
     {
-        $this->host = $host;
-        $this->port = $port;
-        $this->path = $path;
+        self::$host = $host;
+        self::$port = $port;
+        self::$path = $path;
     }
 
     /**
@@ -54,9 +77,14 @@ class Request
      * @throws SoapFault
      * @throws ispConfigNoSessionException
      * @throws ispConfigCannotConnectException
+     * @throws ispConfigMissingConfiguration
      */
     function send() {
         //$responseObjectName = $this->Method.'Result';
+
+        if(empty($this->Method)) {
+            throw new ispConfigMissingConfiguration();
+        }
 
         if($this->Method !== 'login') {
             if (is_null($this->session_id)) {
@@ -64,26 +92,12 @@ class Request
             }
         }
 
-        if(empty($this->host) || empty($this->port) || empty($this->path)) {
-            throw new ispConfigCannotConnectException();
+        if(empty(self::$client)) {
+            self::connect();
         }
 
-        $location = 'https://' . $this->host . ':' . $this->port . '/' . $this->path;
-        $parsedUrl = parse_url($location);
-
         try {
-            $opts = [
-                'location' => $location,
-                'uri' => 'http://' . $this->host . $parsedUrl['path'] . '/',
-                'exceptions' => true,
-                'trace'        => !$this->test,
-                'features'     => SOAP_SINGLE_ELEMENT_ARRAYS,
-            ];
-
-            // create soap client in non-wsdl mode
-            $this->client = new SoapClient(null, $opts);
-
-            $response = $this->client->__soapCall($this->Method, [["request" => $this]]);
+            $response = self::$client->__soapCall($this->Method, [['request' => $this]]);
         }
         catch (SoapFault $e) {
             throw $e;

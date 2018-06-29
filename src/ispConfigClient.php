@@ -1,43 +1,14 @@
 <?php
-/**
- * @author Jonas Marklén <txc@txc.se>
- * @author Ben Lake <me@benlake.org>
- * @license GNU Lesser Public License v3 (http://opensource.org/licenses/lgpl-3.0.html)
- * @copyright Copyright (c) 2011, Ben Lake
- * @link http://benlake.org/projects/show/ispconfigclient
- *
- * This file is part of the ISPConfig PHP Client.
- *
- * ISPConfig PHP Client is free software: you can redistribute it and/or modify
- * it under the terms of the GNU Lesser General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- *
- * ISPConfig PHP Client is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU Lesser General Public License for more details.
- *
- * You should have received a copy of the GNU Lesser General Public License
- * along with ISPConfig PHP Client. If not, see <http://www.gnu.org/licenses/>.
- *
- *
- * This software is is NO WAY affiliated with ISPConfig. The license of this client does
- * not extend to ISPConfig itself!
- * ISPConfig is Copyright (c) 2007, Till Brehm, projektfarm Gmbh, All rights reserved.
- * You can find the source at http://www.ispconfig.org/ispconfig-3/
- */
-
-namespace ispConfig;
+namespace ispConfigClient;
 
 use ispConfig\Exceptions\ispConfigAuthFailed;
 use ispConfig\Exceptions\ispConfigCannotConnectException;
 use ispConfig\Exceptions\ispConfigException;
 use ispConfig\Exceptions\ispConfigInvalidClientException;
 use ispConfig\Exceptions\ispConfigInvalidDomainException;
+use ispConfig\Exceptions\ispConfigMissingConfiguration;
 use ispConfig\Exceptions\ispConfigNoSessionException;
 use ispConfig\Exceptions\ispConfigUnknownServerException;
-use SoapClient;
 use SoapFault;
 
 /**
@@ -46,12 +17,13 @@ use SoapFault;
  * to modify server2 (at least for now as there is no way to specify your server id explicitly).
  * MUST be able to connect over SSL!
  *
- * @package ispconfig3
- * @version 0.1
+ * @package ispConfig-API
+ * @version 0.2.0
+ *
+ * @see https://git.ispconfig.org/ispconfig/ispconfig3/tree/master/remoting_client/API-docs
  */
 class ispConfigClient
 {
-    protected $host;
     protected $server_id;
     protected $soap;
     protected $client_username;
@@ -66,20 +38,8 @@ class ispConfigClient
      */
     function __construct($host, $client_username, $port = 8080, $path = 'remote/index.php')
     {
-        $opts = [
-            'location' => 'https://' . $host . ':' . $port . '/' . $path,
-            'uri' => 'http://' . $host . '/remote/',
-            'exceptions' => true,
-            //'trace' => true,
-        ];
-
-        // create soap client in non-wsdl mode
-        $soapClient = new SoapClient(null, $opts);
-        $this->setClient($soapClient);
-
-
+        \ispConfig\Request::setCredentials($host, $port, $path);
         $this->client_username = $client_username;
-        $this->host = $host;
     }
 
     /**
@@ -92,12 +52,14 @@ class ispConfigClient
      * @throws ispConfigException
      * @throws ispConfigInvalidClientException
      * @throws ispConfigUnknownServerException
+     * @throws ispConfigNoSessionException
+     * @throws ispConfigMissingConfiguration
      */
     public function login($user, $pass)
     {
         try {
-            /** @noinspection PhpUndefinedMethodInspection */
-            $this->session_id = $this->soap->login($user, $pass);
+            $login = new \ispConfig\System\Login($user, $pass);
+            $this->session_id = $login->send();
         } catch (SoapFault $e) {
             if (strpos($e->getMessage(), 'login failed') !== false) {
                 throw new ispConfigAuthFailed($e->getMessage(), 403);
@@ -108,7 +70,7 @@ class ispConfigClient
 
         // grab the client id necessary for any other command
         $this->client_id = $this->fetchClientId($this->client_username);
-        $this->server_id = $this->fetchServerId($this->host);
+        $this->server_id = $this->fetchServerId(\ispConfig\Request::$host);
     }
 
     /**
@@ -120,8 +82,10 @@ class ispConfigClient
      * @param $name
      * @param $ip
      * @return boolean
+     * @throws ispConfigCannotConnectException
      * @throws ispConfigException
      * @throws ispConfigInvalidDomainException
+     * @throws ispConfigMissingConfiguration
      * @throws ispConfigNoSessionException
      */
     public function addSubdomain($tld, $name, $ip)
@@ -141,8 +105,8 @@ class ispConfigClient
             'active' => 'y',
         ];
         try {
-            /** @noinspection PhpUndefinedMethodInspection */
-            $this->soap->dns_a_add($this->session_id, $this->client_id, $params);
+            $dns = new \ispConfig\Dns\A\Add($this->session_id, $this->client_id, $params);
+            $dns->send();
         } catch (SoapFault $e) {
             throw new ispConfigException($e->getMessage());
         }
@@ -159,8 +123,8 @@ class ispConfigClient
             'active' => 'y',
         ];
         try {
-            /** @noinspection PhpUndefinedMethodInspection */
-            $this->soap->dns_mx_add($this->session_id, $this->client_id, $params);
+            $dns = new \ispConfig\Dns\MX\Add($this->session_id, $this->client_id, $params);
+            $dns->send();
         } catch (SoapFault $e) {
             throw new ispConfigException($e->getMessage());
         }
@@ -172,6 +136,8 @@ class ispConfigClient
      * Setup mail for a domain and setup default SPAM policy.
      * @param string the domain to add
      * @return boolean
+     * @throws ispConfigMissingConfiguration
+     * @throws ispConfigCannotConnectException
      * @throws ispConfigException
      * @throws ispConfigNoSessionException
      */
@@ -186,8 +152,8 @@ class ispConfigClient
             'active' => 'y',
         ];
         try {
-            /** @noinspection PhpUndefinedMethodInspection */
-            $this->soap->mail_domain_add($this->session_id, $this->client_id, $params);
+            $mail = new \ispConfig\Mail\Domain\Add($this->session_id, $this->client_id, $params);
+            $mail->send();
         } catch (SoapFault $e) {
             throw new ispConfigException($e->getMessage());
         }
@@ -202,8 +168,8 @@ class ispConfigClient
             'local' => 'Y',
         ];
         try {
-            /** @noinspection PhpUndefinedMethodInspection */
-            $this->soap->mail_spamfilter_user_add($this->session_id, $this->client_id, $params);
+            $spamfilter = new \ispConfig\Mail\Spamfilter\User\Add($this->session_id, $this->client_id, $params);
+            $spamfilter->send();
         } catch (SoapFault $e) {
             throw new ispConfigException($e->getMessage());
         }
@@ -213,13 +179,15 @@ class ispConfigClient
 
     /**
      * Add a new mail account to domain with SPAM policy
-     * @param string the domain the email account is being added to
-     * @param string the name (that which precedes @) of the mail account
-     * @param string the password for the mail account
-     * @param integer [50] number in MB of mail quota
-     * @param string [normal] the spam policy to set for the mail account
+     * @param $domain
+     * @param $mailbox
+     * @param $passwd
+     * @param int $quota
+     * @param string $spam
      * @return boolean
+     * @throws ispConfigCannotConnectException
      * @throws ispConfigException
+     * @throws ispConfigMissingConfiguration
      * @throws ispConfigNoSessionException
      */
     public function addMailAccount($domain, $mailbox, $passwd, $quota = 50, $spam = 'normal')
@@ -246,8 +214,8 @@ class ispConfigClient
             'gid' => 5000,
         ];
         try {
-            /** @noinspection PhpUndefinedMethodInspection */
-            $this->soap->mail_user_add($this->session_id, $this->client_id, $params);
+            $mail = new \ispConfig\Mail\User\Add($this->session_id, $this->client_id, $params);
+            $mail->send();
         } catch (SoapFault $e) {
             throw new ispConfigException($e->getMessage());
         }
@@ -262,8 +230,8 @@ class ispConfigClient
             'local' => 'Y',
         ];
         try {
-            /** @noinspection PhpUndefinedMethodInspection */
-            $this->soap->mail_spamfilter_user_add($this->session_id, $this->client_id, $params);
+            $spamfilter = new \ispConfig\Mail\Spamfilter\User\Add($this->session_id, $this->client_id, $params);
+            $spamfilter->send();
         } catch (SoapFault $e) {
             throw new ispConfigException($e->getMessage());
         }
@@ -275,8 +243,10 @@ class ispConfigClient
      * Remove a top-level domain and associated records from DNS.
      * @param string $domain the fully qualified domain name (or subdomain)
      * @return boolean true on success
-     * @throws ispConfigInvalidDomainException if the domain does not exist
+     * @throws ispConfigCannotConnectException
      * @throws ispConfigException
+     * @throws ispConfigInvalidDomainException if the domain does not exist
+     * @throws ispConfigMissingConfiguration
      * @throws ispConfigNoSessionException
      */
     public function removeDomain($domain)
@@ -284,8 +254,8 @@ class ispConfigClient
         $this->checkSession();
 
         try {
-            /** @noinspection PhpUndefinedMethodInspection */
-            $r = $this->soap->dns_delete_all($this->session_id, $domain);
+            $dns = new \ispConfig\Domain\Delete($this->session_id, $domain);
+            $dns->send();
 
             if (empty($r)) {
                 throw new ispConfigInvalidDomainException('Domain ' . $domain . ' was not found');
@@ -298,33 +268,13 @@ class ispConfigClient
     }
 
     /**
-     * Remove a subdomain and associated records from DNS.
-     * Removes a subdomain to from a top level domain and any A, CNAME, MX records that are related.
-     * TODO maybe some basic validation on the TLD and IP?
-     * @param $tld
-     * @param $name
-     * @return
-     * @throws ispConfigException
-     * @throws ispConfigNoSessionException
-     */
-    public function removeSubdomain($tld, $name)
-    {
-        $this->checkSession();
-
-        try {
-            /** @noinspection PhpUndefinedMethodInspection */
-            return $this->soap->dns_delete_subdomain($this->session_id, $tld, $name);
-        } catch (SoapFault $e) {
-            throw new ispConfigException($e->getMessage());
-        }
-    }
-
-    /**
      * Remove a mail domain, all associated users, and any spam settings for the domain or users.
      * @param string the fully qualified domain name (or subdomain)
      * @return boolean true on success
-     * @throws ispConfigInvalidDomainException if the domain does not exist
+     * @throws ispConfigCannotConnectException
      * @throws ispConfigException
+     * @throws ispConfigInvalidDomainException if the domain does not exist
+     * @throws ispConfigMissingConfiguration
      * @throws ispConfigNoSessionException
      */
     public function removeMailDomain($domain)
@@ -332,8 +282,8 @@ class ispConfigClient
         $this->checkSession();
 
         try {
-            /** @noinspection PhpUndefinedMethodInspection */
-            $r = $this->soap->mail_domain_get_by_domain($this->session_id, $domain);
+            $mail = new \ispConfig\Mail\Domain\GetByDomain($this->session_id, $domain);
+            $r = $mail->send();
 
             if (empty($r)) {
                 throw new ispConfigInvalidDomainException('Domain ' . $domain . ' was not found');
@@ -341,12 +291,15 @@ class ispConfigClient
 
             $domain_id = $r[0]['domain_id'];
 
+            /*
             $this->removeMailAccounts($domain);
-
-            /** @noinspection PhpUndefinedMethodInspection */
+            $mail = new \ispConfig\Mail\Spamfilter\User\Delete();
+            $mail->send();
             $this->soap->mail_spamfilter_user_delete_by_email($this->session_id, '@' . $domain);
-            /** @noinspection PhpUndefinedMethodInspection */
-            $this->soap->mail_domain_delete($this->session_id, $domain_id);
+            */
+
+            $mail = new \ispConfig\Mail\Domain\Delete($this->session_id, $domain_id);
+            $mail->send();
         } catch (SoapFault $e) {
             throw new ispConfigException($e->getMessage());
         }
@@ -354,72 +307,36 @@ class ispConfigClient
         return true;
     }
 
-    /**
-     * Remove all mail accounts for a mail domain.
-     * @param string $domain the fully qualified domain name (or subdomain)
-     * @param array $only optional list of mail accounts to delete, all are delete if not specified (<user>@domain.com)
-     * @return boolean false if no users were found, true if any were found and successfully removed
-     * @throws ispConfigException
-     * @throws ispConfigNoSessionException
-     */
-    public function removeMailAccounts($domain, $only = [])
-    {
-        $this->checkSession();
-
-        // affix the domain to each specified user to make comparison tolerable
-        if (!empty($only)) {
-            foreach ($only as $k => $u) {
-                $only[$k] = $u . '@' . $domain;
-            }
-        }
-
-        try {
-            // TODO should probably add a parameter or method to only bring back specified users
-            /** @noinspection PhpUndefinedMethodInspection */
-            $users = $this->soap->mail_domain_get_users($this->session_id, $domain);
-
-            if (empty($users)) {
-                return false;
-            }
-
-            foreach ($users as $r) {
-                if (!empty($only) && array_search($r['email'], $only, true) === false) {
-                    continue;
-                }
-
-                /** @noinspection PhpUndefinedMethodInspection */
-                $this->soap->mail_spamfilter_user_delete_by_email($this->session_id, $r['email']);
-                /** @noinspection PhpUndefinedMethodInspection */
-                $this->soap->mail_user_delete($this->session_id, $r['mailuser_id']);
-            }
-        } catch (SoapFault $e) {
-            throw new ispConfigException($e->getMessage());
-        }
-
-        return true;
-    }
 
     /**
      * Logout of the remote interface
-     * @throws ispConfigNoSessionException
+     * @throws ispConfigCannotConnectException
      * @throws ispConfigException
+     * @throws ispConfigMissingConfiguration
+     * @throws ispConfigNoSessionException
      */
     public function logout()
     {
         $this->checkSession();
 
         try {
-            /** @noinspection PhpUndefinedMethodInspection */
-            $this->soap->logout($this->session_id);
+            $logout = new \ispConfig\System\Logout($this->session_id);
+            $logout->send();
             $this->session_id = null;
         } catch (SoapFault $e) {
             throw new ispConfigException($e->getMessage(), 500);
+        } catch (ispConfigCannotConnectException $e) {
+            throw $e;
+        } catch (ispConfigNoSessionException $e) {
+            throw $e;
         }
     }
 
     /**
      * Logout if the object is destroyed and logout was not called.
+     * @throws ispConfigCannotConnectException
      * @throws ispConfigException
+     * @throws ispConfigMissingConfiguration
      */
     public function __destruct()
     {
@@ -439,7 +356,10 @@ class ispConfigClient
      * Retrieve the server id from the specified IP address.
      * @param string the server's hostname or IP address
      * @return string
+     * @throws ispConfigCannotConnectException
      * @throws ispConfigException
+     * @throws ispConfigMissingConfiguration
+     * @throws ispConfigNoSessionException
      * @throws ispConfigUnknownServerException
      */
     protected function fetchServerId($host)
@@ -456,8 +376,8 @@ class ispConfigClient
         }
 
         try {
-            /** @noinspection PhpUndefinedMethodInspection */
-            $server_id = $this->soap->server_get_serverid_by_ip($this->session_id, $ip);
+            $server = new \ispConfig\Server\GetServerIdByIp($this->session_id, $ip);
+            $server_id = $server->send();
 
             if (is_array($server_id)) {
                 $server_id = array_pop($server_id);
@@ -479,18 +399,18 @@ class ispConfigClient
      * Retrieve the client id from the provided username. This value is necessary for nearly
      * every other commands.
      * @param string the client username
-     * @return integer
-     * @throws ispConfigInvalidClientException if the client is not found
+     * @return int
+     * @throws ispConfigCannotConnectException
      * @throws ispConfigException
+     * @throws ispConfigInvalidClientException if the client is not found
+     * @throws ispConfigNoSessionException
+     * @throws ispConfigMissingConfiguration
      */
     protected function fetchClientId($username)
     {
         try {
-            /** @noinspection PhpUndefinedMethodInspection */
-            $client_id = $this->soap->client_get_by_username(
-                $this->session_id,
-                $username
-            );
+            $client = new \ispConfig\Client\GetByUsername($this->session_id, $username);
+            $client_id = $client->send();
 
             if ($client_id === false || !isset($client_id['client_id'])) {
                 throw new ispConfigInvalidClientException('Client username not found');
@@ -512,6 +432,9 @@ class ispConfigClient
      * @return integer
      * @throws ispConfigInvalidDomainException
      * @throws ispConfigException
+     * @throws ispConfigNoSessionException
+     * @throws ispConfigCannotConnectException
+     * @throws ispConfigMissingConfiguration
      */
     protected function fetchZoneId($root_tld)
     {
@@ -520,12 +443,8 @@ class ispConfigClient
         $zone_id = null;
 
         try {
-            /** @noinspection PhpUndefinedMethodInspection */
-            $zones = $this->soap->dns_zone_get_by_user(
-                $this->session_id,
-                $this->client_id,
-                $this->server_id
-            );
+            $zone = new \ispConfig\Dns\GetByUser($this->session_id, $this->client_id, $this->server_id);
+            $zones = $zone->send();
             if (is_array($zones)) {
                 foreach ($zones as $z) {
                     if ($z['origin'] == $root_tld) {
@@ -552,14 +471,4 @@ class ispConfigClient
             throw new ispConfigNoSessionException('Please login first!');
         }
     }
-
-    /**
-     * Set the client in a public method
-     * @param SoapClient $client
-     */
-    public function setClient(SoapClient $client)
-    {
-        $this->soap = $client;
-    }
-
 }
